@@ -215,6 +215,40 @@ describe('ParseUser', () => {
       done();
     });
   }));
+  
+  it('can log in as a user', asyncHelper((done) => {
+    class CustomUser extends ParseUser {
+      customMethod() {
+        return 'a';
+      }
+    }
+    ParseObject.registerSubclass(ParseUser.className, CustomUser);
+    
+    ParseUser.enableUnsafeCurrentUser();
+    ParseUser._clearCache();
+    CoreManager.setRESTController({
+      request(method, path, body, options) {
+        expect(method).toBe('GET');
+        expect(path).toBe('login');
+        expect(body.username).toBe('username');
+        expect(body.password).toBe('password');
+
+        return ParsePromise.as({
+          objectId: 'uid2',
+          username: 'username',
+          sessionToken: '123abc'
+        }, 200);
+      },
+      ajax() {}
+    });
+    CustomUser.logIn('username', 'password').then((u) => {
+      expect(u instanceof CustomUser).toBe(true);
+      expect(u.customMethod()).toBe('a');
+      expect(u.id).toBe('uid2');
+      expect(u.getSessionToken()).toBe('123abc');
+      done();
+    });
+  }));
 
   it('fail login when invalid username or password is used', asyncHelper((done) => {
     ParseUser.enableUnsafeCurrentUser();
